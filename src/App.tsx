@@ -12,7 +12,7 @@ function App() {
 
 
     try {
-      socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
+      socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/sockets/logger');
 
       socket.onopen = () => {
         setIsConnected(true);
