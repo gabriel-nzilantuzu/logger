@@ -7,7 +7,6 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/affinity: "cookie"
     nginx.ingress.kubernetes.io/enable-websocket: "true"
-    kubernetes.io/ingress.global-static-ip-name: web-static-ip
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
