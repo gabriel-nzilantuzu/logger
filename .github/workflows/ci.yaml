@@ -58,12 +58,12 @@ jobs:
         run: |
           namespaxe login --username "${{ secrets.NAMESPAXE_USERNAME }}" --password "${{ secrets.NAMESPAXE_PASSWORD }}"
 
-          - name: Get the first namespace
-          id: fetch_namespace
-          run: |
-            response=$(namespaxe list ns --clean)
-            namespace=$(echo $response | jq -r '.data[0].ns_name')
-            echo "namespace=$namespace" >> $GITHUB_ENV
+      - name: Get the first namespace
+        id: fetch_namespace
+        run: |
+          response=$(namespaxe list ns --clean)
+          namespace=$(echo $response | jq -r '.data[0].ns_name')
+          echo "namespace=$namespace" >> $GITHUB_ENV
 
       - name: Install Kubernetes configuration
         run: |
