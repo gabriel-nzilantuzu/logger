@@ -5,14 +5,18 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 function App() {
   const [messages, setMessages] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null); // To store any error messages
+  const [isClient, setIsClient] = useState<boolean>(false); // Check if it's client-side
+  let socket: WebSocket; // Declare the socket variable
+  const createSocket = () => {
 
-  useEffect(() => {
 
-    const createSocket = () => {
-      const socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
+    try {
+      socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
 
       socket.onopen = () => {
         setIsConnected(true);
+        setError(null); // Clear any previous errors
         console.log('WebSocket Connected');
       };
 
@@ -25,23 +29,44 @@ function App() {
         setIsConnected(false);
         console.log('WebSocket Disconnected');
 
+        // Attempt to reconnect after a delay
         setTimeout(createSocket, 2000);
       };
 
       socket.onerror = (error) => {
         console.error('WebSocket error:', error);
+        setError('WebSocket encountered an error. Retrying...');
         socket.close();
       };
+    } catch (err) {
+      console.error('Error establishing WebSocket connection:', err);
+      setError('Failed to establish WebSocket connection. Retrying...');
+      setTimeout(createSocket, 2000); // Retry connection after a delay
+    }
 
-      return socket;
-    };
+    return socket;
+  };
+
+  useEffect(() => {
+    // Set the client-side flag
+    setIsClient(true);
+
+    if (typeof window === 'undefined') return;
+
+
 
     const socket = createSocket();
 
+    // Cleanup WebSocket connection when the component unmounts
     return () => {
-      socket.close();
+      socket?.close();
     };
   }, []);
+
+  if (!isClient) {
+    // Skip rendering on the server side
+    return null;
+  }
 
   return (
     <div className="App container mt-4">
@@ -49,6 +74,12 @@ function App() {
       <p className="text-center">
         <strong>Status:</strong> {isConnected ? 'Connected' : 'Disconnected'}
       </p>
+
+      {error && (
+        <div className="alert alert-danger text-center" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="mt-4">
         <h3>Received Messages:</h3>
