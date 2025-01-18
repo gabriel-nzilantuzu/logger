@@ -27,7 +27,7 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<Record<string, number>>({});
 
   const createSocket = () => {
-    const socket = new WebSocket('ws://log-analytics.ns.namespaxe.com/logger');
+    const socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
     socket.onmessage = (event) => {
       const newData: WebSocketData = JSON.parse(event.data);
       console.log("newData", newData)
