@@ -57,9 +57,9 @@ interface WebSocketData {
   };
 }
 
-function VisualizationApp() {
-  const [logs] = useState<Log[]>([]);
-  const [keywordCounts] = useState<KeywordCount[]>([]);
+function App() {
+  const [logs, setLogs] = useState<Log[]>([]);
+  const [keywordCounts, setKeywordCounts] = useState<KeywordCount[]>([]);
   const [categories, setCategories] = useState<Record<string, number>>({});
 
   let socket: WebSocket;
@@ -79,24 +79,21 @@ function VisualizationApp() {
       console.log("newLogs", newLogs);
       console.log("newCategories", newCategories);
 
-      // Update the state in a functional way to avoid mutation
-      // setLogs((prevLogs) => [...prevLogs, ...newLogs]);
+      setLogs((prevLogs) => [...prevLogs, ...newLogs]);
 
-      // setKeywordCounts((prevKeywordCounts) => {
-      //   // Use a map to efficiently update or add new keyword counts
-      //   const keywordMap = new Map(prevKeywordCounts.map(k => [k.keyword, k]));
-      //   newKeywordCounts.forEach((newKeywordCount) => {
-      //     if (keywordMap.has(newKeywordCount.keyword)) {
-      //       keywordMap.get(newKeywordCount.keyword)!.count += newKeywordCount.count;
-      //     } else {
-      //       keywordMap.set(newKeywordCount.keyword, newKeywordCount);
-      //     }
-      //   });
-      //   return Array.from(keywordMap.values());
-      // });
+      setKeywordCounts((prevKeywordCounts) => {
+        const keywordMap = new Map(prevKeywordCounts.map(k => [k.keyword, k]));
+        newKeywordCounts.forEach((newKeywordCount) => {
+          if (keywordMap.has(newKeywordCount.keyword)) {
+            keywordMap.get(newKeywordCount.keyword)!.count += newKeywordCount.count;
+          } else {
+            keywordMap.set(newKeywordCount.keyword, newKeywordCount);
+          }
+        });
+        return Array.from(keywordMap.values());
+      });
 
       setCategories((prevCategories) => {
-        // Efficiently update the category counts
         const updatedCategories = { ...prevCategories };
         newCategories.forEach((category) => {
           updatedCategories[category.category] = (updatedCategories[category.category] || 0) + 1;
@@ -137,6 +134,9 @@ function VisualizationApp() {
   const data = React.useMemo(() => logs, [logs]);
   const tableInstance = useTable({ columns, data });
 
+  const memoizedKeywordCounts = React.useMemo(() => keywordCounts, [keywordCounts]);
+  const memoizedCategories = React.useMemo(() => categories, [categories]);
+
   return (
     <div className="container mt-4">
       <h1>Real-Time Log Visualization</h1>
@@ -169,11 +169,11 @@ function VisualizationApp() {
       <h3>Category Distribution</h3>
       <Bar
         data={{
-          labels: Object.keys(categories),
+          labels: Object.keys(memoizedCategories),
           datasets: [
             {
               label: 'Log Categories',
-              data: Object.values(categories),
+              data: Object.values(memoizedCategories),
               backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0'],
             },
           ],
@@ -183,10 +183,10 @@ function VisualizationApp() {
       <h3>Keyword Count</h3>
       <Pie
         data={{
-          labels: keywordCounts.map((k) => k.keyword),
+          labels: memoizedKeywordCounts.map((k) => k.keyword),
           datasets: [
             {
-              data: keywordCounts.map((k) => k.count),
+              data: memoizedKeywordCounts.map((k) => k.count),
               backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0'],
             },
           ],
@@ -211,4 +211,4 @@ function VisualizationApp() {
   );
 }
 
-export default VisualizationApp;
+export default App;
