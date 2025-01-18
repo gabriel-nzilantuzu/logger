@@ -60,7 +60,7 @@ interface WebSocketData {
 function VisualizationApp() {
   const [logs] = useState<Log[]>([]);
   const [keywordCounts] = useState<KeywordCount[]>([]);
-  const [categories] = useState<Record<string, number>>({});
+  const [categories, setCategories] = useState<Record<string, number>>({});
 
   let socket: WebSocket;
 
@@ -95,14 +95,14 @@ function VisualizationApp() {
       //   return Array.from(keywordMap.values());
       // });
 
-      // setCategories((prevCategories) => {
-      //   // Efficiently update the category counts
-      //   const updatedCategories = { ...prevCategories };
-      //   newCategories.forEach((category) => {
-      //     updatedCategories[category.category] = (updatedCategories[category.category] || 0) + 1;
-      //   });
-      //   return updatedCategories;
-      // });
+      setCategories((prevCategories) => {
+        // Efficiently update the category counts
+        const updatedCategories = { ...prevCategories };
+        newCategories.forEach((category) => {
+          updatedCategories[category.category] = (updatedCategories[category.category] || 0) + 1;
+        });
+        return updatedCategories;
+      });
     };
 
     socket.onerror = (error) => {
