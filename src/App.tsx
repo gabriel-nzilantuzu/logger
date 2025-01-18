@@ -2,6 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useTable, Column, Row, Cell } from 'react-table';
+import { CategoryScale, Chart as ChartJS, Title, Tooltip, Legend, BarElement, ArcElement, LineElement, Filler, PointElement, LinearScale } from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  PointElement
+);
 
 interface Log {
   log_id: number;
@@ -44,12 +58,24 @@ function VisualizationApp() {
         });
       });
 
-      newCategories.forEach((cat: { category: string | number; }) => {
+      newCategories.forEach((cat: { category: string | number }) => {
         setCategories((prev) => ({
           ...prev,
           [cat.category]: (prev[cat.category] || 0) + 1,
         }));
       });
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket Error:", error);
+    };
+
+    socket.onclose = (event) => {
+      if (event.wasClean) {
+        console.log(`Closed cleanly: code=${event.code}, reason=${event.reason}`);
+      } else {
+        console.error("WebSocket closed unexpectedly.");
+      }
     };
 
     return socket;
