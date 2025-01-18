@@ -44,9 +44,9 @@ function VisualizationApp() {
     socket.onmessage = (event) => {
       const newData = JSON.parse(event.data);
       console.log("newData", newData)
-      const newLogs = newData.flatMap((task: any) => task.tasks.analyzed_logs);
-      const newKeywordCounts = newData.map((task: any) => task.tasks.keyword_count);
-      const newCategories = newData.flatMap((task: any) => task.tasks.categories);
+      const newLogs = newData.content.all_tasks.flatMap((task: any) => task.tasks.analyzed_logs);
+      const newKeywordCounts = newData.content.all_tasks.map((task: any) => task.tasks.keyword_count);
+      const newCategories = newData.content.all_tasks.flatMap((task: any) => task.tasks.categories);
 
       setLogs((prev) => [...prev, ...newLogs]);
 
