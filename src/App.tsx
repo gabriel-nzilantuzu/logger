@@ -46,7 +46,7 @@ interface WebSocketData {
       tasks: {
         analyzed_logs: Log[];
         categories: Category[];
-        keyword_count: KeywordCount;
+        keyword_count: KeywordCount[];
         checksums: {
           log_id: number;
           checksum: number;
@@ -58,11 +58,9 @@ interface WebSocketData {
 }
 
 function VisualizationApp() {
-  const [logs,] = useState<Log[]>([]);
-  const [categories] = useState<Record<string, number>>({});
-
+  const [logs, setLogs] = useState<Log[]>([]);
   const [keywordCounts, setKeywordCounts] = useState<KeywordCount[]>([]);
-  // const [categories, setCategories] = useState<Record<string, number>>({});
+  const [categories, setCategories] = useState<Record<string, number>>({});
 
   let socket: WebSocket;
 
@@ -74,36 +72,38 @@ function VisualizationApp() {
       console.log("newData", JSON.stringify(newData));
 
       const newLogs = newData.content.all_tasks.flatMap((task) => task.tasks.analyzed_logs);
-      const newKeywordCounts = newData.content.all_tasks.map((task) => task.tasks.keyword_count);
+      const newKeywordCounts = newData.content.all_tasks.flatMap((task) => task.tasks.keyword_count);
       const newCategories = newData.content.all_tasks.flatMap((task) => task.tasks.categories);
 
-      console.log("newKeywordCounts", newKeywordCounts)
-      console.log("newLogs", newLogs)
-      console.log("newCategories", newCategories)
+      console.log("newKeywordCounts", newKeywordCounts);
+      console.log("newLogs", newLogs);
+      console.log("newCategories", newCategories);
 
-      // setLogs((prev) => [...prev, ...newLogs]);
-      setKeywordCounts((prev) => {
-        const updatedKeywordCounts = prev.slice();
-        newKeywordCounts.forEach((k: KeywordCount) => {
-          const existing = updatedKeywordCounts.find((kw) => kw.keyword === k.keyword);
-          if (existing) {
-            existing.count += k.count;
+      // Update the state in a functional way to avoid mutation
+      setLogs((prevLogs) => [...prevLogs, ...newLogs]);
+
+      setKeywordCounts((prevKeywordCounts) => {
+        // Use a map to efficiently update or add new keyword counts
+        const keywordMap = new Map(prevKeywordCounts.map(k => [k.keyword, k]));
+        newKeywordCounts.forEach((newKeywordCount) => {
+          if (keywordMap.has(newKeywordCount.keyword)) {
+            keywordMap.get(newKeywordCount.keyword)!.count += newKeywordCount.count;
           } else {
-            updatedKeywordCounts.push(k);
+            keywordMap.set(newKeywordCount.keyword, newKeywordCount);
           }
         });
-        return updatedKeywordCounts;
+        return Array.from(keywordMap.values());
       });
 
-      // setCategories((prev) => {
-      //   const updatedCategories = { ...prev };
-      //   newCategories.forEach((cat: Category) => {
-      //     updatedCategories[cat.category] = (updatedCategories[cat.category] || 0) + 1;
-      //   });
-      //   return updatedCategories;
-      // });
+      setCategories((prevCategories) => {
+        // Efficiently update the category counts
+        const updatedCategories = { ...prevCategories };
+        newCategories.forEach((category) => {
+          updatedCategories[category.category] = (updatedCategories[category.category] || 0) + 1;
+        });
+        return updatedCategories;
+      });
     };
-
 
     socket.onerror = (error) => {
       console.error("WebSocket Error:", error);
