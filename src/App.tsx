@@ -1,106 +1,149 @@
-import './App.css';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Bar, Pie, Line } from 'react-chartjs-2';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useTable, Column, Row, Cell } from 'react-table';
 
-function App() {
-  const [messages, setMessages] = useState<string[]>([]);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState<boolean>(false);
+interface Log {
+  log_id: number;
+  log: string;
+  category: string;
+  checksum: number;
+  rank: number;
+}
+
+interface KeywordCount {
+  keyword: string;
+  count: number;
+  rank: number;
+}
+
+function VisualizationApp() {
+  const [logs, setLogs] = useState<Log[]>([]);
+  const [keywordCounts, setKeywordCounts] = useState<KeywordCount[]>([]);
+  const [categories, setCategories] = useState<Record<string, number>>({});
+
   let socket: WebSocket;
+
   const createSocket = () => {
-    try {
-      socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
+    socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
 
-      socket.onopen = () => {
-        setIsConnected(true);
-        setError(null);
-        console.log('WebSocket Connected');
-      };
+    socket.onmessage = (event) => {
+      const newData = JSON.parse(event.data);
 
-      socket.onmessage = (event) => {
-        console.log('Received message:', event.data);
-        setMessages((prevMessages) => [...prevMessages, event.data]);
-      };
+      const newLogs = newData.all_tasks.flatMap((task: any) => task.tasks.analyzed_logs);
+      const newKeywordCounts = newData.all_tasks.map((task: any) => task.tasks.keyword_count);
+      const newCategories = newData.all_tasks.flatMap((task: any) => task.tasks.categories);
 
-      socket.onclose = () => {
-        setIsConnected(false);
-        console.log('WebSocket Disconnected');
+      setLogs((prev) => [...prev, ...newLogs]);
 
-        setTimeout(createSocket, 2000);
-      };
+      newKeywordCounts.forEach((k: KeywordCount) => {
+        setKeywordCounts((prev) => {
+          const existing = prev.find((kw) => kw.keyword === k.keyword);
+          if (existing) existing.count += k.count;
+          return [...prev.filter((kw) => kw.keyword !== k.keyword), existing || k];
+        });
+      });
 
-      socket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setError('WebSocket encountered an error. Retrying...');
-        socket.close();
-      };
-    } catch (err) {
-      console.error('Error establishing WebSocket connection:', err);
-      setError('Failed to establish WebSocket connection. Retrying...');
-      setTimeout(createSocket, 2000); // Retry connection after a delay
-    }
+      newCategories.forEach((cat: { category: string | number; }) => {
+        setCategories((prev) => ({
+          ...prev,
+          [cat.category]: (prev[cat.category] || 0) + 1,
+        }));
+      });
+    };
 
     return socket;
   };
 
   useEffect(() => {
-    // Set the client-side flag
-    setIsClient(true);
-
-    if (typeof window === 'undefined') return;
-
-
-
-    const socket = createSocket();
-
-    // Cleanup WebSocket connection when the component unmounts
+    const ws = createSocket();
     return () => {
-      socket?.close();
+      ws.close();
     };
   }, []);
 
-  if (!isClient) {
-    // Skip rendering on the server side
-    return null;
-  }
+  const columns: Column<Log>[] = [
+    { Header: 'Log ID', accessor: 'log_id' },
+    { Header: 'Log', accessor: 'log' },
+    { Header: 'Category', accessor: 'category' },
+    { Header: 'Checksum', accessor: 'checksum' },
+  ];
+
+  const data = React.useMemo(() => logs, [logs]);
+  const tableInstance = useTable({ columns, data });
 
   return (
-    <div className="App container mt-4">
-      <h1 className="text-center">Hooks from logs</h1>
-      <p className="text-center">
-        <strong>Status:</strong> {isConnected ? 'Connected' : 'Disconnected'}
-      </p>
+    <div className="container mt-4">
+      <h1>Real-Time Log Visualization</h1>
 
-      {error && (
-        <div className="alert alert-danger text-center" role="alert">
-          {error}
-        </div>
-      )}
+      <h3>Logs Table</h3>
+      <table {...tableInstance.getTableProps()} className="table table-striped">
+        <thead>
+          {tableInstance.headerGroups.map((headerGroup) => (
+            <tr {...headerGroup.getHeaderGroupProps()}>
+              {headerGroup.headers.map((column) => (
+                <th {...column.getHeaderProps()}>{column.render('Header')}</th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody {...tableInstance.getTableBodyProps()}>
+          {tableInstance.rows.map((row: Row<Log>) => {
+            tableInstance.prepareRow(row);
+            return (
+              <tr {...row.getRowProps()}>
+                {row.cells.map((cell: Cell<Log>) => (
+                  <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
 
-      <div className="mt-4">
-        <h3>Received Messages:</h3>
-        <div
-          style={{
-            maxHeight: '300px',
-            overflowY: 'auto',
-            border: '1px solid #ddd',
-            padding: '10px',
-          }}
-        >
-          {messages.length === 0 ? (
-            <p>No messages received yet.</p>
-          ) : (
-            messages.map((msg, index) => (
-              <div key={index} className="message p-2 mb-2 bg-light border rounded">
-                {msg}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      <h3>Category Distribution</h3>
+      <Bar
+        data={{
+          labels: Object.keys(categories),
+          datasets: [
+            {
+              label: 'Log Categories',
+              data: Object.values(categories),
+              backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0'],
+            },
+          ],
+        }}
+      />
+
+      <h3>Keyword Count</h3>
+      <Pie
+        data={{
+          labels: keywordCounts.map((k) => k.keyword),
+          datasets: [
+            {
+              data: keywordCounts.map((k) => k.count),
+              backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0'],
+            },
+          ],
+        }}
+      />
+
+      <h3>Checksum Trends</h3>
+      <Line
+        data={{
+          labels: logs.map((l) => `Log ${l.log_id}`),
+          datasets: [
+            {
+              label: 'Checksums',
+              data: logs.map((l) => l.checksum),
+              borderColor: '#4bc0c0',
+              fill: false,
+            },
+          ],
+        }}
+      />
     </div>
   );
 }
 
-export default App;
+export default VisualizationApp;
