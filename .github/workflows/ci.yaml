@@ -48,7 +48,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          tags: ${{ secrets.D_USERNAME }}/logger:3.1
+          tags: ${{ secrets.D_USERNAME }}/logger:3.2
           push: true
 
       - name: Namespaxe login

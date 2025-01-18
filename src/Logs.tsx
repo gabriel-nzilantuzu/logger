@@ -15,28 +15,32 @@ export const LogsTable: React.FC<{ logs: Log[] }> = ({ logs }) => {
     const tableInstance = useTable({ columns, data });
 
     return (
-        <table {...tableInstance.getTableProps()} className="table table-striped">
-            <thead>
-                {tableInstance.headerGroups.map(headerGroup => (
-                    <tr {...headerGroup.getHeaderGroupProps()} key={headerGroup.getHeaderGroupProps().key}>
-                        {headerGroup.headers.map(column => (
-                            <th {...column.getHeaderProps()} key={column.getHeaderProps().key}>{column.render('Header')}</th>
-                        ))}
-                    </tr>
-                ))}
-            </thead>
-            <tbody {...tableInstance.getTableBodyProps()}>
-                {tableInstance.rows.map((row: Row<Log>) => {
-                    tableInstance.prepareRow(row);
-                    return (
-                        <tr {...row.getRowProps()} key={row.getRowProps().key}>
-                            {row.cells.map((cell: Cell<Log>) => (
-                                <td {...cell.getCellProps()} key={cell.getCellProps().key}>{cell.render('Cell')}</td>
+        <div className="p-3">
+            <h3 className="text-start">Logs Table</h3>
+            <table {...tableInstance.getTableProps()} className="table table-striped">
+                <thead>
+                    {tableInstance.headerGroups.map(headerGroup => (
+                        <tr {...headerGroup.getHeaderGroupProps()} key={headerGroup.getHeaderGroupProps().key}>
+                            {headerGroup.headers.map(column => (
+                                <th {...column.getHeaderProps()} key={column.getHeaderProps().key}>{column.render('Header')}</th>
                             ))}
                         </tr>
-                    );
-                })}
-            </tbody>
-        </table>
+                    ))}
+                </thead>
+                <tbody {...tableInstance.getTableBodyProps()}>
+                    {tableInstance.rows.map((row: Row<Log>) => {
+                        tableInstance.prepareRow(row);
+                        return (
+                            <tr {...row.getRowProps()} key={row.getRowProps().key}>
+                                {row.cells.map((cell: Cell<Log>) => (
+                                    <td {...cell.getCellProps()} key={cell.getCellProps().key}>{cell.render('Cell')}</td>
+                                ))}
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+
     );
 };

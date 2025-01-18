@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { CategoryScale, Chart as ChartJS, Title, Tooltip, Legend, BarElement, ArcElement, LineElement, Filler, PointElement, LinearScale } from 'chart.js';
-import { Log, KeywordCount, WebSocketData } from './types';
+import { Log, KeywordCount, WebSocketData, OpenMPMetrics } from './types';
 import { LogsTable } from './Logs';
 import { CategoryDistributionChart } from './Cartegory';
 import { ChecksumTrendsChart } from './CheckSome';
 import { KeywordCountChart } from './KeywordCount';
+import OpenMPMetricsChart from './OpenMPMetricsChart';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import "./App.css";
 
-// Register chart components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -26,14 +28,23 @@ const App: React.FC = () => {
   const [keywordCounts, setKeywordCounts] = useState<KeywordCount[]>([]);
   const [categories, setCategories] = useState<Record<string, number>>({});
 
+  const [openMPMetrics, setOpenMPMetrics] = useState<OpenMPMetrics[]>([]);
+
   const createSocket = () => {
     const socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
     socket.onmessage = (event) => {
       const newData: WebSocketData = JSON.parse(event.data);
-      console.log("newData", newData)
-      const newLogs = newData.content.all_tasks.flatMap(task => task.tasks.analyzed_logs);
-      const newKeywordCounts = newData.content.all_tasks.flatMap(task => task.tasks.keyword_count);
-      const newCategories = newData.content.all_tasks.flatMap(task => task.tasks.categories);
+
+      const newMetrics = newData.content.all_tasks.map((task) => ({
+        num_threads_used: task.tasks.openmp_metrics.num_threads_used,
+        tasks_time: task.tasks.openmp_metrics.tasks_time,
+      }));
+
+      setOpenMPMetrics((prevMetrics) => [...prevMetrics, ...newMetrics]);
+
+      const newLogs = newData.content.all_tasks.flatMap((task) => task.tasks.analyzed_logs);
+      const newKeywordCounts = newData.content.all_tasks.flatMap((task) => task.tasks.keyword_count);
+      const newCategories = newData.content.all_tasks.flatMap((task) => task.tasks.categories);
       const newChecksums = newData.content.all_tasks.flatMap(task => task.tasks.checksums);
 
       const getCategoryAndChecksum = (logId: number, rank: number) => {
@@ -55,9 +66,9 @@ const App: React.FC = () => {
       });
 
       setLogs(prevLogs => [...prevLogs, ...enhancedLogs]);
-      setKeywordCounts(prevKeywordCounts => {
-        const keywordMap = new Map(prevKeywordCounts.map(k => [k.keyword, k]));
-        newKeywordCounts.forEach(newKeywordCount => {
+      setKeywordCounts((prevKeywordCounts) => {
+        const keywordMap = new Map(prevKeywordCounts.map((k) => [k.keyword, k]));
+        newKeywordCounts.forEach((newKeywordCount) => {
           if (keywordMap.has(newKeywordCount.keyword)) {
             keywordMap.get(newKeywordCount.keyword)!.count += newKeywordCount.count;
           } else {
@@ -67,27 +78,18 @@ const App: React.FC = () => {
         return Array.from(keywordMap.values());
       });
 
-      setCategories(prevCategories => {
+      setCategories((prevCategories) => {
         const updatedCategories = { ...prevCategories };
-        newCategories.forEach(category => {
+        newCategories.forEach((category) => {
           updatedCategories[category.category] = (updatedCategories[category.category] || 0) + 1;
         });
         return updatedCategories;
       });
     };
 
-
-    socket.onerror = error => console.error("WebSocket Error:", error);
-    socket.onclose = event => {
-      if (event.wasClean) {
-        console.log(`Closed cleanly: code=${event.code}, reason=${event.reason}`);
-      } else {
-        console.error("WebSocket closed unexpectedly.");
-      }
-    };
-
     return socket;
   };
+
 
   useEffect(() => {
     const ws = createSocket();
@@ -95,21 +97,31 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="container mt-4">
-      <h1>Real-Time Log Visualization</h1>
-      <h3>Logs Table</h3>
-      <LogsTable logs={logs} />
+    <div className='w-100 d-flex align-items-center'>
+      <div className="container mt-4">
+        <h1 className="text-center mb-4">Real-Time Log Visualization</h1>
 
-      <h3>Category Distribution</h3>
-      <CategoryDistributionChart categories={categories} />
-
-      <h3>Keyword Count</h3>
-      <KeywordCountChart keywordCounts={keywordCounts} />
-
-      <h3>Checksum Trends</h3>
-      <ChecksumTrendsChart logs={logs} />
+        <div className="row gap-1">
+          <div className="mb-4 gap-4 d-flex w-100">
+            <ChecksumTrendsChart logs={logs} />
+            <OpenMPMetricsChart metrics={openMPMetrics} />
+          </div>
+          <div className="mb-4 gap-4 d-flex w-100">
+            <CategoryDistributionChart categories={categories} />
+            <KeywordCountChart keywordCounts={keywordCounts} />
+          </div>
+          <div className="col-12 mb-4 card p-2 w-100">
+            <LogsTable logs={logs} />
+          </div>
+        </div>
+      </div>
     </div>
+
+
+
+
   );
+
 };
 
 export default App;
