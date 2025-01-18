@@ -75,26 +75,29 @@ function VisualizationApp() {
       const newKeywordCounts = newData.content.all_tasks.map((task) => task.tasks.keyword_count);
       const newCategories = newData.content.all_tasks.flatMap((task) => task.tasks.categories);
 
-      // Update logs state
       setLogs((prev) => [...prev, ...newLogs]);
-
-      // Update keyword counts state
-      newKeywordCounts.forEach((k: KeywordCount) => {
-        setKeywordCounts((prev) => {
-          const existing = prev.find((kw) => kw.keyword === k.keyword);
-          if (existing) existing.count += k.count;
-          return [...prev.filter((kw) => kw.keyword !== k.keyword), existing || k];
+      setKeywordCounts((prev) => {
+        const updatedKeywordCounts = prev.slice();
+        newKeywordCounts.forEach((k: KeywordCount) => {
+          const existing = updatedKeywordCounts.find((kw) => kw.keyword === k.keyword);
+          if (existing) {
+            existing.count += k.count;
+          } else {
+            updatedKeywordCounts.push(k);
+          }
         });
+        return updatedKeywordCounts;
       });
 
-      // Update categories state
-      newCategories.forEach((cat: Category) => {
-        setCategories((prev) => ({
-          ...prev,
-          [cat.category]: (prev[cat.category] || 0) + 1,
-        }));
+      setCategories((prev) => {
+        const updatedCategories = { ...prev };
+        newCategories.forEach((cat: Category) => {
+          updatedCategories[cat.category] = (updatedCategories[cat.category] || 0) + 1;
+        });
+        return updatedCategories;
       });
     };
+
 
     socket.onerror = (error) => {
       console.error("WebSocket Error:", error);
