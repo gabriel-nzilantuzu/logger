@@ -59,8 +59,8 @@ interface WebSocketData {
 
 function App() {
   const [logs, setLogs] = useState<Log[]>([]);
-  const [keywordCounts, setKeywordCounts] = useState<KeywordCount[]>([]);
-  const [categories, setCategories] = useState<Record<string, number>>({});
+  const [keywordCounts] = useState<KeywordCount[]>([]);
+  const [categories] = useState<Record<string, number>>({});
 
   let socket: WebSocket;
 
@@ -81,25 +81,25 @@ function App() {
 
       setLogs((prevLogs) => [...prevLogs, ...newLogs]);
 
-      setKeywordCounts((prevKeywordCounts) => {
-        const keywordMap = new Map(prevKeywordCounts.map(k => [k.keyword, k]));
-        newKeywordCounts.forEach((newKeywordCount) => {
-          if (keywordMap.has(newKeywordCount.keyword)) {
-            keywordMap.get(newKeywordCount.keyword)!.count += newKeywordCount.count;
-          } else {
-            keywordMap.set(newKeywordCount.keyword, newKeywordCount);
-          }
-        });
-        return Array.from(keywordMap.values());
-      });
+      // setKeywordCounts((prevKeywordCounts) => {
+      //   const keywordMap = new Map(prevKeywordCounts.map(k => [k.keyword, k]));
+      //   newKeywordCounts.forEach((newKeywordCount) => {
+      //     if (keywordMap.has(newKeywordCount.keyword)) {
+      //       keywordMap.get(newKeywordCount.keyword)!.count += newKeywordCount.count;
+      //     } else {
+      //       keywordMap.set(newKeywordCount.keyword, newKeywordCount);
+      //     }
+      //   });
+      //   return Array.from(keywordMap.values());
+      // });
 
-      setCategories((prevCategories) => {
-        const updatedCategories = { ...prevCategories };
-        newCategories.forEach((category) => {
-          updatedCategories[category.category] = (updatedCategories[category.category] || 0) + 1;
-        });
-        return updatedCategories;
-      });
+      // setCategories((prevCategories) => {
+      //   const updatedCategories = { ...prevCategories };
+      //   newCategories.forEach((category) => {
+      //     updatedCategories[category.category] = (updatedCategories[category.category] || 0) + 1;
+      //   });
+      //   return updatedCategories;
+      // });
     };
 
     socket.onerror = (error) => {
