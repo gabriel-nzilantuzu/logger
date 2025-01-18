@@ -4,6 +4,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { useTable, Column, Row, Cell } from 'react-table';
 import { CategoryScale, Chart as ChartJS, Title, Tooltip, Legend, BarElement, ArcElement, LineElement, Filler, PointElement, LinearScale } from 'chart.js';
 
+// Register chart components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -17,6 +18,7 @@ ChartJS.register(
   PointElement
 );
 
+// Type definitions
 interface Log {
   log_id: number;
   log: string;
@@ -31,6 +33,30 @@ interface KeywordCount {
   rank: number;
 }
 
+interface Category {
+  log_id: number;
+  category: string;
+  rank: number;
+}
+
+interface WebSocketData {
+  content: {
+    all_tasks: {
+      rank: number;
+      tasks: {
+        analyzed_logs: Log[];
+        categories: Category[];
+        keyword_count: KeywordCount;
+        checksums: {
+          log_id: number;
+          checksum: number;
+          rank: number;
+        }[];
+      };
+    }[];
+  };
+}
+
 function VisualizationApp() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [keywordCounts, setKeywordCounts] = useState<KeywordCount[]>([]);
@@ -42,14 +68,17 @@ function VisualizationApp() {
     socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
 
     socket.onmessage = (event) => {
-      const newData = JSON.parse(event.data);
-      console.log("newData", JSON.stringify(newData))
-      const newLogs = newData.content.all_tasks.flatMap((task: any) => task.tasks.analyzed_logs);
-      const newKeywordCounts = newData.content.all_tasks.map((task: any) => task.tasks.keyword_count);
-      const newCategories = newData.content.all_tasks.flatMap((task: any) => task.tasks.categories);
+      const newData: WebSocketData = JSON.parse(event.data);
+      console.log("newData", JSON.stringify(newData));
 
+      const newLogs = newData.content.all_tasks.flatMap((task) => task.tasks.analyzed_logs);
+      const newKeywordCounts = newData.content.all_tasks.map((task) => task.tasks.keyword_count);
+      const newCategories = newData.content.all_tasks.flatMap((task) => task.tasks.categories);
+
+      // Update logs state
       setLogs((prev) => [...prev, ...newLogs]);
 
+      // Update keyword counts state
       newKeywordCounts.forEach((k: KeywordCount) => {
         setKeywordCounts((prev) => {
           const existing = prev.find((kw) => kw.keyword === k.keyword);
@@ -58,7 +87,8 @@ function VisualizationApp() {
         });
       });
 
-      newCategories.forEach((cat: { category: string | number }) => {
+      // Update categories state
+      newCategories.forEach((cat: Category) => {
         setCategories((prev) => ({
           ...prev,
           [cat.category]: (prev[cat.category] || 0) + 1,
