@@ -5,18 +5,16 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 function App() {
   const [messages, setMessages] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null); // To store any error messages
-  const [isClient, setIsClient] = useState<boolean>(false); // Check if it's client-side
-  let socket: WebSocket; // Declare the socket variable
+  const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState<boolean>(false);
+  let socket: WebSocket;
   const createSocket = () => {
-
-
     try {
       socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
 
       socket.onopen = () => {
         setIsConnected(true);
-        setError(null); // Clear any previous errors
+        setError(null);
         console.log('WebSocket Connected');
       };
 
@@ -29,7 +27,6 @@ function App() {
         setIsConnected(false);
         console.log('WebSocket Disconnected');
 
-        // Attempt to reconnect after a delay
         setTimeout(createSocket, 2000);
       };
 
