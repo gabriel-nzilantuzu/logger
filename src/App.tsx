@@ -59,8 +59,11 @@ interface WebSocketData {
 
 function VisualizationApp() {
   const [logs, setLogs] = useState<Log[]>([]);
-  const [keywordCounts, setKeywordCounts] = useState<KeywordCount[]>([]);
-  const [categories, setCategories] = useState<Record<string, number>>({});
+  const [keywordCounts] = useState<KeywordCount[]>([]);
+  const [categories] = useState<Record<string, number>>({});
+
+  // const [keywordCounts, setKeywordCounts] = useState<KeywordCount[]>([]);
+  // const [categories, setCategories] = useState<Record<string, number>>({});
 
   let socket: WebSocket;
 
@@ -75,27 +78,31 @@ function VisualizationApp() {
       const newKeywordCounts = newData.content.all_tasks.map((task) => task.tasks.keyword_count);
       const newCategories = newData.content.all_tasks.flatMap((task) => task.tasks.categories);
 
-      setLogs((prev) => [...prev, ...newLogs]);
-      setKeywordCounts((prev) => {
-        const updatedKeywordCounts = prev.slice();
-        newKeywordCounts.forEach((k: KeywordCount) => {
-          const existing = updatedKeywordCounts.find((kw) => kw.keyword === k.keyword);
-          if (existing) {
-            existing.count += k.count;
-          } else {
-            updatedKeywordCounts.push(k);
-          }
-        });
-        return updatedKeywordCounts;
-      });
+      console.log("newKeywordCounts", newKeywordCounts)
+      console.log("newLogs", newLogs)
+      console.log("newCategories", newCategories)
 
-      setCategories((prev) => {
-        const updatedCategories = { ...prev };
-        newCategories.forEach((cat: Category) => {
-          updatedCategories[cat.category] = (updatedCategories[cat.category] || 0) + 1;
-        });
-        return updatedCategories;
-      });
+      setLogs((prev) => [...prev, ...newLogs]);
+      // setKeywordCounts((prev) => {
+      //   const updatedKeywordCounts = prev.slice();
+      //   newKeywordCounts.forEach((k: KeywordCount) => {
+      //     const existing = updatedKeywordCounts.find((kw) => kw.keyword === k.keyword);
+      //     if (existing) {
+      //       existing.count += k.count;
+      //     } else {
+      //       updatedKeywordCounts.push(k);
+      //     }
+      //   });
+      //   return updatedKeywordCounts;
+      // });
+
+      // setCategories((prev) => {
+      //   const updatedCategories = { ...prev };
+      //   newCategories.forEach((cat: Category) => {
+      //     updatedCategories[cat.category] = (updatedCategories[cat.category] || 0) + 1;
+      //   });
+      //   return updatedCategories;
+      // });
     };
 
 

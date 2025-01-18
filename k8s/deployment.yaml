@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: logger-container
-          image: namespaxe/logger:2.2
+          image: namespaxe/logger:2.3
           resources:
             requests:
               memory: "90Mi"
