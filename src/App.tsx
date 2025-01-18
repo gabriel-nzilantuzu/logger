@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Bar, Pie, Line } from 'react-chartjs-2';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { useTable, Column, Row, Cell } from 'react-table';
 import { CategoryScale, Chart as ChartJS, Title, Tooltip, Legend, BarElement, ArcElement, LineElement, Filler, PointElement, LinearScale } from 'chart.js';
+import { Log, KeywordCount, WebSocketData } from './types';
+import { LogsTable } from './Logs';
+import { CategoryDistributionChart } from './Cartegory';
+import { ChecksumTrendsChart } from './CheckSome';
+import { KeywordCountChart } from './KeywordCount';
 
 // Register chart components
 ChartJS.register(
@@ -18,95 +21,64 @@ ChartJS.register(
   PointElement
 );
 
-// Type definitions
-interface Log {
-  log_id: number;
-  log: string;
-  category: string;
-  checksum: number;
-  rank: number;
-}
-
-interface KeywordCount {
-  keyword: string;
-  count: number;
-  rank: number;
-}
-
-interface Category {
-  log_id: number;
-  category: string;
-  rank: number;
-}
-
-interface WebSocketData {
-  content: {
-    all_tasks: {
-      rank: number;
-      tasks: {
-        analyzed_logs: Log[];
-        categories: Category[];
-        keyword_count: KeywordCount[];
-        checksums: {
-          log_id: number;
-          checksum: number;
-          rank: number;
-        }[];
-      };
-    }[];
-  };
-}
-
-function App() {
+const App: React.FC = () => {
   const [logs, setLogs] = useState<Log[]>([]);
-  const [keywordCounts] = useState<KeywordCount[]>([]);
-  const [categories] = useState<Record<string, number>>({});
-
-  let socket: WebSocket;
+  const [keywordCounts, setKeywordCounts] = useState<KeywordCount[]>([]);
+  const [categories, setCategories] = useState<Record<string, number>>({});
 
   const createSocket = () => {
-    socket = new WebSocket('wss://log-analytics.ns.namespaxe.com/logger');
-
+    const socket = new WebSocket('ws://log-analytics.ns.namespaxe.com/logger');
     socket.onmessage = (event) => {
       const newData: WebSocketData = JSON.parse(event.data);
-      console.log("newData", JSON.stringify(newData));
+      console.log("newData", newData)
+      const newLogs = newData.content.all_tasks.flatMap(task => task.tasks.analyzed_logs);
+      const newKeywordCounts = newData.content.all_tasks.flatMap(task => task.tasks.keyword_count);
+      const newCategories = newData.content.all_tasks.flatMap(task => task.tasks.categories);
+      const newChecksums = newData.content.all_tasks.flatMap(task => task.tasks.checksums);
 
-      const newLogs = newData.content.all_tasks.flatMap((task) => task.tasks.analyzed_logs);
-      const newKeywordCounts = newData.content.all_tasks.flatMap((task) => task.tasks.keyword_count);
-      const newCategories = newData.content.all_tasks.flatMap((task) => task.tasks.categories);
+      const getCategoryAndChecksum = (logId: number, rank: number) => {
+        const category = newCategories.find(cat => cat.log_id === logId && cat.rank === rank);
+        const checksum = newChecksums.find(check => check.log_id === logId && check.rank === rank);
+        return {
+          category: category ? category.category : null,
+          checksum: checksum ? checksum.checksum : null,
+        };
+      };
 
-      console.log("newKeywordCounts", newKeywordCounts);
-      console.log("newLogs", newLogs);
-      console.log("newCategories", newCategories);
+      const enhancedLogs = newLogs.map(log => {
+        const { category, checksum } = getCategoryAndChecksum(log.log_id, log.rank);
+        return {
+          ...log,
+          category,
+          checksum,
+        };
+      });
 
-      setLogs((prevLogs) => [...prevLogs, ...newLogs]);
+      setLogs(prevLogs => [...prevLogs, ...enhancedLogs]);
+      setKeywordCounts(prevKeywordCounts => {
+        const keywordMap = new Map(prevKeywordCounts.map(k => [k.keyword, k]));
+        newKeywordCounts.forEach(newKeywordCount => {
+          if (keywordMap.has(newKeywordCount.keyword)) {
+            keywordMap.get(newKeywordCount.keyword)!.count += newKeywordCount.count;
+          } else {
+            keywordMap.set(newKeywordCount.keyword, newKeywordCount);
+          }
+        });
+        return Array.from(keywordMap.values());
+      });
 
-      // setKeywordCounts((prevKeywordCounts) => {
-      //   const keywordMap = new Map(prevKeywordCounts.map(k => [k.keyword, k]));
-      //   newKeywordCounts.forEach((newKeywordCount) => {
-      //     if (keywordMap.has(newKeywordCount.keyword)) {
-      //       keywordMap.get(newKeywordCount.keyword)!.count += newKeywordCount.count;
-      //     } else {
-      //       keywordMap.set(newKeywordCount.keyword, newKeywordCount);
-      //     }
-      //   });
-      //   return Array.from(keywordMap.values());
-      // });
-
-      // setCategories((prevCategories) => {
-      //   const updatedCategories = { ...prevCategories };
-      //   newCategories.forEach((category) => {
-      //     updatedCategories[category.category] = (updatedCategories[category.category] || 0) + 1;
-      //   });
-      //   return updatedCategories;
-      // });
+      setCategories(prevCategories => {
+        const updatedCategories = { ...prevCategories };
+        newCategories.forEach(category => {
+          updatedCategories[category.category] = (updatedCategories[category.category] || 0) + 1;
+        });
+        return updatedCategories;
+      });
     };
 
-    socket.onerror = (error) => {
-      console.error("WebSocket Error:", error);
-    };
 
-    socket.onclose = (event) => {
+    socket.onerror = error => console.error("WebSocket Error:", error);
+    socket.onclose = event => {
       if (event.wasClean) {
         console.log(`Closed cleanly: code=${event.code}, reason=${event.reason}`);
       } else {
@@ -119,96 +91,25 @@ function App() {
 
   useEffect(() => {
     const ws = createSocket();
-    return () => {
-      ws.close();
-    };
+    return () => ws.close();
   }, []);
-
-  const columns: Column<Log>[] = [
-    { Header: 'Log ID', accessor: 'log_id' },
-    { Header: 'Log', accessor: 'log' },
-    { Header: 'Category', accessor: 'category' },
-    { Header: 'Checksum', accessor: 'checksum' },
-  ];
-
-  const data = React.useMemo(() => logs, [logs]);
-  const tableInstance = useTable({ columns, data });
-
-  const memoizedKeywordCounts = React.useMemo(() => keywordCounts, [keywordCounts]);
-  const memoizedCategories = React.useMemo(() => categories, [categories]);
 
   return (
     <div className="container mt-4">
       <h1>Real-Time Log Visualization</h1>
-
       <h3>Logs Table</h3>
-      <table {...tableInstance.getTableProps()} className="table table-striped">
-        <thead>
-          {tableInstance.headerGroups.map((headerGroup) => (
-            <tr {...headerGroup.getHeaderGroupProps()}>
-              {headerGroup.headers.map((column) => (
-                <th {...column.getHeaderProps()}>{column.render('Header')}</th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody {...tableInstance.getTableBodyProps()}>
-          {tableInstance.rows.map((row: Row<Log>) => {
-            tableInstance.prepareRow(row);
-            return (
-              <tr {...row.getRowProps()}>
-                {row.cells.map((cell: Cell<Log>) => (
-                  <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <LogsTable logs={logs} />
 
       <h3>Category Distribution</h3>
-      <Bar
-        data={{
-          labels: Object.keys(memoizedCategories),
-          datasets: [
-            {
-              label: 'Log Categories',
-              data: Object.values(memoizedCategories),
-              backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0'],
-            },
-          ],
-        }}
-      />
+      <CategoryDistributionChart categories={categories} />
 
       <h3>Keyword Count</h3>
-      <Pie
-        data={{
-          labels: memoizedKeywordCounts.map((k) => k.keyword),
-          datasets: [
-            {
-              data: memoizedKeywordCounts.map((k) => k.count),
-              backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0'],
-            },
-          ],
-        }}
-      />
+      <KeywordCountChart keywordCounts={keywordCounts} />
 
       <h3>Checksum Trends</h3>
-      <Line
-        data={{
-          labels: logs.map((l) => `Log ${l.log_id}`),
-          datasets: [
-            {
-              label: 'Checksums',
-              data: logs.map((l) => l.checksum),
-              borderColor: '#4bc0c0',
-              fill: false,
-            },
-          ],
-        }}
-      />
+      <ChecksumTrendsChart logs={logs} />
     </div>
   );
-}
+};
 
 export default App;
